@@ -26,7 +26,6 @@
 
 Security Type | Description
 ------------ | ------------
-NONE | Endpoint can be accessed freely.
 USER_DATA | Endpoint requires sending a valid API-Key.
 TRADE | Endpoint requires sending a valid API-Key.
 WITHDRAW | Endpoint requires sending a valid API-Key.
@@ -37,6 +36,8 @@ WITHDRAW | Endpoint requires sending a valid API-Key.
 ```
 POST /orders
 ```
+**Required permission** ```TRADING```
+
 **Params**
 
 Name | Description
@@ -67,6 +68,8 @@ validOrder * (body) | validOrder
 ```
 DELETE /orders/{id}
 ```
+**Required permission** ```TRADING```
+
 **Params**
 
 Name | Description
@@ -120,6 +123,8 @@ GET /orders/active
 ```
 POST /orders/market
 ```
+**Required permission** ```TRADING```
+
 **Params**
 
 Name | Description
@@ -149,6 +154,8 @@ marketOrder * (body) | marketOrder
 ```
 POST /orders/sltp
 ```
+**Required permission** ```TRADING```
+
 **Params**
 
 Name | Description
@@ -180,6 +187,8 @@ sltpOrder * (body) | sltpOrder
 ```
 POST /orders/trailing
 ```
+**Required permission** ```TRADING```
+
 **Params**
 
 Name | Description
@@ -205,9 +214,8 @@ validOrder * (body) | validOrder
 **Response:**
 ```200 OK```
 
-
+#
 ### Pairs
-
 ```
 GET /pairs/
 ```
@@ -1083,7 +1091,7 @@ GET /pairs/user/preferred
   }
 ]
 ```
-
+#
 ### Trades
 
 ```
@@ -1107,7 +1115,7 @@ pair * string (query) | pair
   }
 ]
 ```
-
+#
 ### Users
 
 
@@ -1359,7 +1367,7 @@ unpaged boolean (query) | -
   }
 ]
 ```
-
+#
 ### Wallets
 
 
@@ -1384,6 +1392,8 @@ GET /wallets
 ```
 PUT /wallets
 ```
+**Required permission** ```WITHDRAW```
+
 **Params**
 
 Name | Description
