@@ -6,9 +6,9 @@
 * HTTP `4XX` return codes are used for for malformed requests; the issue is on the sender's side.
 * HTTP `5XX` return codes are used for internal errors; the issue is on server's side.
   It is important to **NOT** treat this as a failure operation; the execution status is **UNKNOWN** and could have been a success.
-* For `GET` endpoints, parameters must be sent as a `query string`.
-* For `POST`, `PUT`, and `DELETE` endpoints, the parameters must be sent in the `request body` with content type
-  `application/json`.
+* We are using `GET`, `POST`, `PUT`, `PATCH` and `DELETE` methods.
+* Some parametes must be sent as a `query string`, `request body` and/or `path variable`.
+* The content type is `application/json`.
 
   # LIMITS
   As it is now, API calls are unlimited.
