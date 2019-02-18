@@ -27,8 +27,96 @@
 Security Type | Description
 ------------ | ------------
 USER_DATA | Endpoint requires sending a valid API-Key.
-TRADE | Endpoint requires sending a valid API-Key.
-WITHDRAW | Endpoint requires sending a valid API-Key.
+TRADE | Endpoint requires sending a valid API-Key and signature.
+WITHDRAW | Endpoint requires sending a valid API-Key and signature.
+
+# SIGNED (TRADE and WITHDRAW) Endpoint security
+* `SIGNED` endpoints require an additional parameter, `signature`, to be sent in the  `query string`.
+* Endpoints use `HMAC SHA256` signatures. The `HMAC SHA256 signature` is a keyed `HMAC SHA256` operation.
+  Use your `secretKey` as the key and `totalParams` as the value for the HMAC operation.
+* The `signature` is **case sensitive**.
+* `totalParams` is defined as the `query string` concatenated with the `request body`.
+
+## ENUM definitions
+**Order side (side):**
+
+* BUY
+* SELL
+
+**Currency:**
+* E2C
+* ETH
+* ADA
+* BTC
+* LTC
+* DASH
+* ZEC
+* BCH
+
+**Pair name (pairName, pair):**
+* E2C/ETH
+* ADA/ETH
+* DASH/ETH
+* LTC/ETH
+* ZEC/ETH
+* E2C/BTC
+* ADA/BTC
+* BCH/BTC
+* DASH/BTC
+* ETH/BTC
+* LTC/BTC
+* ZEC/BTC
+
+## SIGNED Endpoint Example for POST /api/v1/orders/market
+Here is a step-by-step example of how to send a vaild signed payload from the
+Linux command line using `echo`, `openssl`, and `curl`.
+
+Key | Value
+------------ | ------------
+publicKey | mWPCL7kPoa5njUAUIQbtznVnRqyn4wZ5nYv2TTMdQMk5IYF61QjdoHO8MrSZKiOT
+secretKey | IN0PR6nP6qGlUgySohQk73F7yH7jrotoyFADvOb6SNx5uqwpmbVMzUPT4boF2UOU
+
+
+Parameter | Value
+------------ | ------------
+amount | 1
+market | true
+pairName | LTC/BTC
+side | BUY
+price | 0.1
+
+* **queryString:** `signature=c6ab8e302471ce37fab6ed2e6c3bc8935dbbf1ab3629326d2359ec000d0bfa1d`
+* **requestBody:** `{"amount":1,"pairName":"LTC/BTC","price":0.1,"side":"BUY"}`
+* **signedString:** `amount=1&pairName=LTC/BTC&price=0.1&side=BUY`
+
+  `NOTE: key-value pairs naturally ordered by keys: amount=1&pairName=LTC/BTC&price=0.1&side=BUY`
+
+  `Please consider using naturally ordered keys or else you'll receive wrong singnature error`
+
+* **HMAC SHA256 signature:**
+
+    ```
+    [linux]$ echo -n "amount=1&pairName=LTC/BTC&price=0.1&side=BUY" | openssl dgst -sha256 -hmac "IN0PR6nP6qGlUgySohQk73F7yH7jrotoyFADvOb6SNx5uqwpmbVMzUPT4boF2UOU"
+    (stdin)= c6ab8e302471ce37fab6ed2e6c3bc8935dbbf1ab3629326d2359ec000d0bfa1d
+    ```
+
+* **curl command:**
+
+    ```
+    (HMAC SHA256)
+    [linux]$ curl -H "X-CX-APIKEY: mWPCL7kPoa5njUAUIQbtznVnRqyn4wZ5nYv2TTMdQMk5IYF61QjdoHO8MrSZKiOT" -H "Content-Type: application/json" -X POST 'https://golobex.com/api/v1/orders/market?signature=c6ab8e302471ce37fab6ed2e6c3bc8935dbbf1ab3629326d2359ec000d0bfa1d' -d '{"amount":1,"pairName":"LTC/BTC","price":0.1,"side":"BUY"}'
+    ```
+
+if you received this:
+```JSON
+{
+  "url":"https://golobex.com/api/v1/orders/market",
+  "cause":"InsufficientFundsException",
+  "detail":"Not enough money for execute market order"
+}
+```
+
+it means everything is ready to deposit some real money!
 
 # General endpoints
 
@@ -36,20 +124,21 @@ WITHDRAW | Endpoint requires sending a valid API-Key.
 ```
 POST /orders
 ```
-**Required permission** ```TRADING```
+`SIGNED`
+
+**Required permission:** ```TRADING```
 
 **Params**
 
 Name | Description
 ------------ | ------------
-validOrder * (body) | validOrder
+order * (body) | order
 
 *Example Value*
-```javascript
+```JSON
 {
   "amount": 0,
   "distance": 0,
-  "managedOrder": true,
   "market": true,
   "pairName": "string",
   "price": 0,
@@ -68,7 +157,7 @@ validOrder * (body) | validOrder
 ```
 DELETE /orders/{id}
 ```
-**Required permission** ```TRADING```
+**Required permission:** ```TRADING```
 
 **Params**
 
@@ -84,10 +173,9 @@ id * string (path) | id
 GET /orders/active
 ```
 **Response:**
-```javascript
+```JSON
 [
   {
-    "binanceOrder": true,
     "commissionOnCurrencyOfOrder": true,
     "currencyFirst": "ETH",
     "currencySecond": "ETH",
@@ -100,7 +188,6 @@ GET /orders/active
     "pairName": "string",
     "price": 0,
     "quantity": 0,
-    "shouldWaitForMatch": true,
     "side": "BUY",
     "slPrice": 0,
     "sltp": true,
@@ -123,7 +210,9 @@ GET /orders/active
 ```
 POST /orders/market
 ```
-**Required permission** ```TRADING```
+`SIGNED`
+
+**Required permission:** ```TRADING```
 
 **Params**
 
@@ -132,19 +221,12 @@ Name | Description
 marketOrder * (body) | marketOrder
 
 *Example Value*
-```javascript
+```JSON
 {
   "amount": 0,
-  "distance": 0,
-  "managedOrder": true,
-  "market": true,
   "pairName": "string",
   "price": 0,
-  "side": "BUY",
-  "slPrice": 0,
-  "sltp": true,
-  "tpPrice": 0,
-  "trailing": true
+  "side": "BUY"
 }
 ```
 **Response:**
@@ -154,7 +236,9 @@ marketOrder * (body) | marketOrder
 ```
 POST /orders/sltp
 ```
-**Required permission** ```TRADING```
+`SIGNED`
+
+**Required permission:** ```TRADING```
 
 **Params**
 
@@ -163,19 +247,13 @@ Name | Description
 sltpOrder * (body) | sltpOrder
 
 *Example Value*
-```javascript
+```JSON
 {
   "amount": 0,
-  "distance": 0,
-  "managedOrder": true,
-  "market": true,
   "pairName": "string",
-  "price": 0,
   "side": "BUY",
   "slPrice": 0,
-  "sltp": true,
-  "tpPrice": 0,
-  "trailing": true
+  "tpPrice": 0
 }
 ```
 **Response:**
@@ -187,28 +265,23 @@ sltpOrder * (body) | sltpOrder
 ```
 POST /orders/trailing
 ```
-**Required permission** ```TRADING```
+`SIGNED`
+
+**Required permission:** ```TRADING```
 
 **Params**
 
 Name | Description
 ------------ | ------------
-validOrder * (body) | validOrder
+trailingOrder * (body) | trailingOrder
 
 *Example Value*
-```javascript
+```JSON
 {
   "amount": 0,
   "distance": 0,
-  "managedOrder": true,
-  "market": true,
   "pairName": "string",
-  "price": 0,
-  "side": "BUY",
-  "slPrice": 0,
-  "sltp": true,
-  "tpPrice": 0,
-  "trailing": true
+  "side": "BUY"
 }
 ```
 **Response:**
@@ -220,7 +293,7 @@ validOrder * (body) | validOrder
 GET /pairs/
 ```
 **Response:**
-```javascript
+```JSON
 [
   {
     "afterDecimalPoint": 0,
@@ -242,7 +315,7 @@ GET /pairs/
       "plain": 0
     },
     "currencyFirst": "ETH",
-    "currencyLast": "ETH",
+    "currencyLast": "BTC",
     "currentPrice": 0,
     "enabled": true,
     "firstCurrencyCommission": 0,
@@ -250,293 +323,6 @@ GET /pairs/
     "lastCurrencyCommission": 0,
     "minPrice": 0,
     "minQuantity": 0,
-    "orderBook": {
-      "bestBuyPrice": 0,
-      "bestSellPrice": 0,
-      "buyOrders": {
-        "additionalProp1": [
-          {
-            "binanceOrder": true,
-            "commissionOnCurrencyOfOrder": true,
-            "currencyFirst": "ETH",
-            "currencySecond": "ETH",
-            "date": 0,
-            "feeCurrency": "ETH",
-            "feeSum": 0,
-            "id": "string",
-            "initialQuantity": 0,
-            "market": true,
-            "pairName": "string",
-            "price": 0,
-            "quantity": 0,
-            "shouldWaitForMatch": true,
-            "side": "BUY",
-            "slPrice": 0,
-            "sltp": true,
-            "sum": 0,
-            "total": 0,
-            "totalWithOutFee": 0,
-            "tpPrice": 0,
-            "trailingDistance": 0,
-            "trailingRange": 0,
-            "traling": true,
-            "userId": "string"
-          }
-        ],
-        "additionalProp2": [
-          {
-            "binanceOrder": true,
-            "commissionOnCurrencyOfOrder": true,
-            "currencyFirst": "ETH",
-            "currencySecond": "ETH",
-            "date": 0,
-            "feeCurrency": "ETH",
-            "feeSum": 0,
-            "id": "string",
-            "initialQuantity": 0,
-            "market": true,
-            "pairName": "string",
-            "price": 0,
-            "quantity": 0,
-            "shouldWaitForMatch": true,
-            "side": "BUY",
-            "slPrice": 0,
-            "sltp": true,
-            "sum": 0,
-            "total": 0,
-            "totalWithOutFee": 0,
-            "tpPrice": 0,
-            "trailingDistance": 0,
-            "trailingRange": 0,
-            "traling": true,
-            "userId": "string"
-          }
-        ],
-        "additionalProp3": [
-          {
-            "binanceOrder": true,
-            "commissionOnCurrencyOfOrder": true,
-            "currencyFirst": "ETH",
-            "currencySecond": "ETH",
-            "date": 0,
-            "feeCurrency": "ETH",
-            "feeSum": 0,
-            "id": "string",
-            "initialQuantity": 0,
-            "market": true,
-            "pairName": "string",
-            "price": 0,
-            "quantity": 0,
-            "shouldWaitForMatch": true,
-            "side": "BUY",
-            "slPrice": 0,
-            "sltp": true,
-            "sum": 0,
-            "total": 0,
-            "totalWithOutFee": 0,
-            "tpPrice": 0,
-            "trailingDistance": 0,
-            "trailingRange": 0,
-            "traling": true,
-            "userId": "string"
-          }
-        ]
-      },
-      "buyOrdersDepth": 0,
-      "completeOrderPrice2Tics": {
-        "additionalProp1": {
-          "number": 0,
-          "updateTime": "2019-02-11T17:01:07.650Z"
-        },
-        "additionalProp2": {
-          "number": 0,
-          "updateTime": "2019-02-11T17:01:07.650Z"
-        },
-        "additionalProp3": {
-          "number": 0,
-          "updateTime": "2019-02-11T17:01:07.650Z"
-        }
-      },
-      "firstBuyPrice": 0,
-      "firstSellPrice": 0,
-      "sellOrders": {
-        "additionalProp1": [
-          {
-            "binanceOrder": true,
-            "commissionOnCurrencyOfOrder": true,
-            "currencyFirst": "ETH",
-            "currencySecond": "ETH",
-            "date": 0,
-            "feeCurrency": "ETH",
-            "feeSum": 0,
-            "id": "string",
-            "initialQuantity": 0,
-            "market": true,
-            "pairName": "string",
-            "price": 0,
-            "quantity": 0,
-            "shouldWaitForMatch": true,
-            "side": "BUY",
-            "slPrice": 0,
-            "sltp": true,
-            "sum": 0,
-            "total": 0,
-            "totalWithOutFee": 0,
-            "tpPrice": 0,
-            "trailingDistance": 0,
-            "trailingRange": 0,
-            "traling": true,
-            "userId": "string"
-          }
-        ],
-        "additionalProp2": [
-          {
-            "binanceOrder": true,
-            "commissionOnCurrencyOfOrder": true,
-            "currencyFirst": "ETH",
-            "currencySecond": "ETH",
-            "date": 0,
-            "feeCurrency": "ETH",
-            "feeSum": 0,
-            "id": "string",
-            "initialQuantity": 0,
-            "market": true,
-            "pairName": "string",
-            "price": 0,
-            "quantity": 0,
-            "shouldWaitForMatch": true,
-            "side": "BUY",
-            "slPrice": 0,
-            "sltp": true,
-            "sum": 0,
-            "total": 0,
-            "totalWithOutFee": 0,
-            "tpPrice": 0,
-            "trailingDistance": 0,
-            "trailingRange": 0,
-            "traling": true,
-            "userId": "string"
-          }
-        ],
-        "additionalProp3": [
-          {
-            "binanceOrder": true,
-            "commissionOnCurrencyOfOrder": true,
-            "currencyFirst": "ETH",
-            "currencySecond": "ETH",
-            "date": 0,
-            "feeCurrency": "ETH",
-            "feeSum": 0,
-            "id": "string",
-            "initialQuantity": 0,
-            "market": true,
-            "pairName": "string",
-            "price": 0,
-            "quantity": 0,
-            "shouldWaitForMatch": true,
-            "side": "BUY",
-            "slPrice": 0,
-            "sltp": true,
-            "sum": 0,
-            "total": 0,
-            "totalWithOutFee": 0,
-            "tpPrice": 0,
-            "trailingDistance": 0,
-            "trailingRange": 0,
-            "traling": true,
-            "userId": "string"
-          }
-        ]
-      },
-      "sellOrdersDepth": 0,
-      "sltpOrders": [
-        {
-          "binanceOrder": true,
-          "commissionOnCurrencyOfOrder": true,
-          "currencyFirst": "ETH",
-          "currencySecond": "ETH",
-          "date": 0,
-          "feeCurrency": "ETH",
-          "feeSum": 0,
-          "id": "string",
-          "initialQuantity": 0,
-          "market": true,
-          "pairName": "string",
-          "price": 0,
-          "quantity": 0,
-          "shouldWaitForMatch": true,
-          "side": "BUY",
-          "slPrice": 0,
-          "sltp": true,
-          "sum": 0,
-          "total": 0,
-          "totalWithOutFee": 0,
-          "tpPrice": 0,
-          "trailingDistance": 0,
-          "trailingRange": 0,
-          "traling": true,
-          "userId": "string"
-        }
-      ],
-      "trailingOrders": [
-        {
-          "binanceOrder": true,
-          "commissionOnCurrencyOfOrder": true,
-          "currencyFirst": "ETH",
-          "currencySecond": "ETH",
-          "date": 0,
-          "feeCurrency": "ETH",
-          "feeSum": 0,
-          "id": "string",
-          "initialQuantity": 0,
-          "market": true,
-          "pairName": "string",
-          "price": 0,
-          "quantity": 0,
-          "shouldWaitForMatch": true,
-          "side": "BUY",
-          "slPrice": 0,
-          "sltp": true,
-          "sum": 0,
-          "total": 0,
-          "totalWithOutFee": 0,
-          "tpPrice": 0,
-          "trailingDistance": 0,
-          "trailingRange": 0,
-          "traling": true,
-          "userId": "string"
-        }
-      ]
-    },
-    "ordersForME": [
-      {
-        "binanceOrder": true,
-        "commissionOnCurrencyOfOrder": true,
-        "currencyFirst": "ETH",
-        "currencySecond": "ETH",
-        "date": 0,
-        "feeCurrency": "ETH",
-        "feeSum": 0,
-        "id": "string",
-        "initialQuantity": 0,
-        "market": true,
-        "pairName": "string",
-        "price": 0,
-        "quantity": 0,
-        "shouldWaitForMatch": true,
-        "side": "BUY",
-        "slPrice": 0,
-        "sltp": true,
-        "sum": 0,
-        "total": 0,
-        "totalWithOutFee": 0,
-        "tpPrice": 0,
-        "trailingDistance": 0,
-        "trailingRange": 0,
-        "traling": true,
-        "userId": "string"
-      }
-    ],
     "pairInfo": {
       "currentPrice": 0,
       "dailyChange": 0,
@@ -598,7 +384,7 @@ Name | Description
 pairName * string (path) | pairName
 
 **Response:**
-```javascript
+```JSON
 {
   "afterDecimalPoint": 0,
   "candle": {
@@ -627,293 +413,6 @@ pairName * string (path) | pairName
   "lastCurrencyCommission": 0,
   "minPrice": 0,
   "minQuantity": 0,
-  "orderBook": {
-    "bestBuyPrice": 0,
-    "bestSellPrice": 0,
-    "buyOrders": {
-      "additionalProp1": [
-        {
-          "binanceOrder": true,
-          "commissionOnCurrencyOfOrder": true,
-          "currencyFirst": "ETH",
-          "currencySecond": "ETH",
-          "date": 0,
-          "feeCurrency": "ETH",
-          "feeSum": 0,
-          "id": "string",
-          "initialQuantity": 0,
-          "market": true,
-          "pairName": "string",
-          "price": 0,
-          "quantity": 0,
-          "shouldWaitForMatch": true,
-          "side": "BUY",
-          "slPrice": 0,
-          "sltp": true,
-          "sum": 0,
-          "total": 0,
-          "totalWithOutFee": 0,
-          "tpPrice": 0,
-          "trailingDistance": 0,
-          "trailingRange": 0,
-          "traling": true,
-          "userId": "string"
-        }
-      ],
-      "additionalProp2": [
-        {
-          "binanceOrder": true,
-          "commissionOnCurrencyOfOrder": true,
-          "currencyFirst": "ETH",
-          "currencySecond": "ETH",
-          "date": 0,
-          "feeCurrency": "ETH",
-          "feeSum": 0,
-          "id": "string",
-          "initialQuantity": 0,
-          "market": true,
-          "pairName": "string",
-          "price": 0,
-          "quantity": 0,
-          "shouldWaitForMatch": true,
-          "side": "BUY",
-          "slPrice": 0,
-          "sltp": true,
-          "sum": 0,
-          "total": 0,
-          "totalWithOutFee": 0,
-          "tpPrice": 0,
-          "trailingDistance": 0,
-          "trailingRange": 0,
-          "traling": true,
-          "userId": "string"
-        }
-      ],
-      "additionalProp3": [
-        {
-          "binanceOrder": true,
-          "commissionOnCurrencyOfOrder": true,
-          "currencyFirst": "ETH",
-          "currencySecond": "ETH",
-          "date": 0,
-          "feeCurrency": "ETH",
-          "feeSum": 0,
-          "id": "string",
-          "initialQuantity": 0,
-          "market": true,
-          "pairName": "string",
-          "price": 0,
-          "quantity": 0,
-          "shouldWaitForMatch": true,
-          "side": "BUY",
-          "slPrice": 0,
-          "sltp": true,
-          "sum": 0,
-          "total": 0,
-          "totalWithOutFee": 0,
-          "tpPrice": 0,
-          "trailingDistance": 0,
-          "trailingRange": 0,
-          "traling": true,
-          "userId": "string"
-        }
-      ]
-    },
-    "buyOrdersDepth": 0,
-    "completeOrderPrice2Tics": {
-      "additionalProp1": {
-        "number": 0,
-        "updateTime": "2019-02-11T17:01:41.872Z"
-      },
-      "additionalProp2": {
-        "number": 0,
-        "updateTime": "2019-02-11T17:01:41.872Z"
-      },
-      "additionalProp3": {
-        "number": 0,
-        "updateTime": "2019-02-11T17:01:41.872Z"
-      }
-    },
-    "firstBuyPrice": 0,
-    "firstSellPrice": 0,
-    "sellOrders": {
-      "additionalProp1": [
-        {
-          "binanceOrder": true,
-          "commissionOnCurrencyOfOrder": true,
-          "currencyFirst": "ETH",
-          "currencySecond": "ETH",
-          "date": 0,
-          "feeCurrency": "ETH",
-          "feeSum": 0,
-          "id": "string",
-          "initialQuantity": 0,
-          "market": true,
-          "pairName": "string",
-          "price": 0,
-          "quantity": 0,
-          "shouldWaitForMatch": true,
-          "side": "BUY",
-          "slPrice": 0,
-          "sltp": true,
-          "sum": 0,
-          "total": 0,
-          "totalWithOutFee": 0,
-          "tpPrice": 0,
-          "trailingDistance": 0,
-          "trailingRange": 0,
-          "traling": true,
-          "userId": "string"
-        }
-      ],
-      "additionalProp2": [
-        {
-          "binanceOrder": true,
-          "commissionOnCurrencyOfOrder": true,
-          "currencyFirst": "ETH",
-          "currencySecond": "ETH",
-          "date": 0,
-          "feeCurrency": "ETH",
-          "feeSum": 0,
-          "id": "string",
-          "initialQuantity": 0,
-          "market": true,
-          "pairName": "string",
-          "price": 0,
-          "quantity": 0,
-          "shouldWaitForMatch": true,
-          "side": "BUY",
-          "slPrice": 0,
-          "sltp": true,
-          "sum": 0,
-          "total": 0,
-          "totalWithOutFee": 0,
-          "tpPrice": 0,
-          "trailingDistance": 0,
-          "trailingRange": 0,
-          "traling": true,
-          "userId": "string"
-        }
-      ],
-      "additionalProp3": [
-        {
-          "binanceOrder": true,
-          "commissionOnCurrencyOfOrder": true,
-          "currencyFirst": "ETH",
-          "currencySecond": "ETH",
-          "date": 0,
-          "feeCurrency": "ETH",
-          "feeSum": 0,
-          "id": "string",
-          "initialQuantity": 0,
-          "market": true,
-          "pairName": "string",
-          "price": 0,
-          "quantity": 0,
-          "shouldWaitForMatch": true,
-          "side": "BUY",
-          "slPrice": 0,
-          "sltp": true,
-          "sum": 0,
-          "total": 0,
-          "totalWithOutFee": 0,
-          "tpPrice": 0,
-          "trailingDistance": 0,
-          "trailingRange": 0,
-          "traling": true,
-          "userId": "string"
-        }
-      ]
-    },
-    "sellOrdersDepth": 0,
-    "sltpOrders": [
-      {
-        "binanceOrder": true,
-        "commissionOnCurrencyOfOrder": true,
-        "currencyFirst": "ETH",
-        "currencySecond": "ETH",
-        "date": 0,
-        "feeCurrency": "ETH",
-        "feeSum": 0,
-        "id": "string",
-        "initialQuantity": 0,
-        "market": true,
-        "pairName": "string",
-        "price": 0,
-        "quantity": 0,
-        "shouldWaitForMatch": true,
-        "side": "BUY",
-        "slPrice": 0,
-        "sltp": true,
-        "sum": 0,
-        "total": 0,
-        "totalWithOutFee": 0,
-        "tpPrice": 0,
-        "trailingDistance": 0,
-        "trailingRange": 0,
-        "traling": true,
-        "userId": "string"
-      }
-    ],
-    "trailingOrders": [
-      {
-        "binanceOrder": true,
-        "commissionOnCurrencyOfOrder": true,
-        "currencyFirst": "ETH",
-        "currencySecond": "ETH",
-        "date": 0,
-        "feeCurrency": "ETH",
-        "feeSum": 0,
-        "id": "string",
-        "initialQuantity": 0,
-        "market": true,
-        "pairName": "string",
-        "price": 0,
-        "quantity": 0,
-        "shouldWaitForMatch": true,
-        "side": "BUY",
-        "slPrice": 0,
-        "sltp": true,
-        "sum": 0,
-        "total": 0,
-        "totalWithOutFee": 0,
-        "tpPrice": 0,
-        "trailingDistance": 0,
-        "trailingRange": 0,
-        "traling": true,
-        "userId": "string"
-      }
-    ]
-  },
-  "ordersForME": [
-    {
-      "binanceOrder": true,
-      "commissionOnCurrencyOfOrder": true,
-      "currencyFirst": "ETH",
-      "currencySecond": "ETH",
-      "date": 0,
-      "feeCurrency": "ETH",
-      "feeSum": 0,
-      "id": "string",
-      "initialQuantity": 0,
-      "market": true,
-      "pairName": "string",
-      "price": 0,
-      "quantity": 0,
-      "shouldWaitForMatch": true,
-      "side": "BUY",
-      "slPrice": 0,
-      "sltp": true,
-      "sum": 0,
-      "total": 0,
-      "totalWithOutFee": 0,
-      "tpPrice": 0,
-      "trailingDistance": 0,
-      "trailingRange": 0,
-      "traling": true,
-      "userId": "string"
-    }
-  ],
   "pairInfo": {
     "currentPrice": 0,
     "dailyChange": 0,
@@ -973,10 +472,9 @@ Name | Description
 pairName * string (path) | pairName
 
 **Response:**
-```javascript
+```JSON
 [
   {
-    "bothOrdersIsBinance": true,
     "date": 0,
     "firstCommissionOnCurrencyOfOrder": true,
     "firstOrderId": "string",
@@ -1008,7 +506,7 @@ Name | Description
 pairName * string (path) | pairName
 
 **Response:**
-```javascript
+```JSON
 {
   "currentPrice": 0,
   "dailyChange": 0,
@@ -1029,7 +527,7 @@ GET /pairs/active-pairs
 ```
 
 **Response:**
-```javascript
+```JSON
 [
   "string"
 ]
@@ -1040,7 +538,7 @@ GET /pairs/active-pairs
 GET /pairs/favorites
 ```
 **Response:**
-```javascript
+```JSON
 [
   "string"
 ]
@@ -1057,7 +555,7 @@ Name | Description
 pairName * string (path) | pairName
 
 **Response:**
-```javascript
+```JSON
 [
   "string"
 ]
@@ -1070,7 +568,7 @@ GET /pairs/names
 ```
 
 **Response:**
-```javascript
+```JSON
 [
   {
     "pairName": "string"
@@ -1084,7 +582,7 @@ GET /pairs/user/preferred
 ```
 
 **Response:**
-```javascript
+```JSON
 [
   {
     "pairName": "string"
@@ -1105,7 +603,7 @@ count integer($int32) (query) | count (Default value : 30)
 pair * string (query) | pair
 
 **Response:**
-```javascript
+```JSON
 [
   {
     "id": "string",
@@ -1125,7 +623,7 @@ GET /users/current
 ```
 
 **Response:**
-```javascript
+```JSON
 {
   "accountNonExpired": true,
   "accountNonLocked": true,
@@ -1143,71 +641,13 @@ GET /users/current
 }
 ```
 
-
 #
-
-```
-PUT /users/current/address
-```
-**Params**
-
-Name | Description
------------- | ------------
-apartmentNumber string (query) | -
-city string (query) | -
-country string (query) | -
-house string (query) | -
-id string (query) | -
-permanentAddressMatchCurrentAddress boolean (query) | -
-permanentApartmentNumber string (query) | -
-permanentCity string (query) | -
-permanentCountry string (query) | -
-permanentHouse string (query) | -
-permanentPostIndex string (query) | -
-permanentRegion string (query) | -
-permanentState string (query) | -
-permanentStreet string (query) | -
-postIndex string (query) | -
-region string (query) | -
-state string (query) | -
-street string (query) | -
-valid boolean (query) | -
-
-**Response:**
-```200 OK```
-#
-
-```
-PUT /users/current/contacts
-```
-**Params**
-
-Name | Description
------------- | ------------
-citizenship string (query) | -
-countryCode string (query) | -
-dayOfBirth integer($int32) (query) | -
-email string (query) | -
-firstName string (query) | -
-id string (query) | -
-lastName string (query) | -
-monthOfBirth string (query) | -
-patronymicName string (query) | -
-phoneNumber string (query) | -
-regionCode string (query) | -
-sex string (query) | -
-yearOfBirth integer($int32) (query) | -
-
-**Response:**
-```200 OK```
-#
-
 ```
 GET /users/current/info
 ```
 
 **Response:**
-```javascript
+```JSON
 {
   "addressId": "string",
   "contactsId": "string",
@@ -1239,7 +679,7 @@ GET /users/current/pairs
 ```
 
 **Response:**
-```javascript
+```JSON
 {
   "additionalProp1": [
     "string"
@@ -1252,48 +692,7 @@ GET /users/current/pairs
   ]
 }
 ```
-#
 
-```
-GET /users/current/settings
-```
-**Response:**
-```javascript
-{
-  "commissionInCurrencyOfOrder": true,
-  "displayPreferredPairs": [
-    "string"
-  ],
-  "favoritePairs": [
-    "string"
-  ],
-  "loginByIp": true,
-  "onLoginNotification": true,
-  "onOrderCancelNotification": true,
-  "onOrderNotification": true,
-  "onTradeNotification": true,
-  "onWithdrawNotification": true,
-  "secondAuthOnLogin": true,
-  "secondAuthOnWithdraw": true,
-  "secret": "string",
-  "sendEmailOnLogin": true,
-  "stayOnline": true,
-  "whiteIPs": [
-    {
-      "browser": "string",
-      "city": "string",
-      "country": "string",
-      "date": 0,
-      "ip": "string",
-      "os": "string"
-    }
-  ],
-  "withdrawAddressesWhiteList": [
-    "string"
-  ],
-  "withdrawByAddress": true
-}
-```
 #
 
 ```
@@ -1346,10 +745,9 @@ startDate integer($int64) (query) | startDate (Default value : 1)
 unpaged boolean (query) | -
 
 **Response:**
-```javascript
+```JSON
 [
   {
-    "bothOrdersIsBinance": true,
     "date": 0,
     "firstCommissionOnCurrencyOfOrder": true,
     "firstOrderId": "string",
@@ -1376,7 +774,7 @@ GET /wallets
 ```
 
 **Response:**
-```javascript
+```JSON
 [
   {
     "availableBalance": 0,
@@ -1392,7 +790,9 @@ GET /wallets
 ```
 PUT /wallets
 ```
-**Required permission** ```WITHDRAW```
+`SIGNED`
+
+**Required permission:** ```WITHDRAW```
 
 **Params**
 
@@ -1401,7 +801,7 @@ Name | Description
 withdrawRequest * (body) | withdrawRequest
 
 *Example Value*
-```javascript
+```JSON
 {
   "address": "string",
   "amount": 0,
@@ -1410,7 +810,7 @@ withdrawRequest * (body) | withdrawRequest
 }
 ```
 **Response:**
-```javascript
+```JSON
 {
   "availableBalance": 0,
   "currency": "ETH",
@@ -1431,7 +831,7 @@ Name | Description
 currency * string (path) | currency (Available values : ETH, BTC, USD, LTC, DASH, ZEC, BCH, ETC, BTG, ADA, EOS, E2C, XLM)
 
 **Response:**
-```javascript
+```JSON
 {
   "currentRate": 0,
   "frozenActives": 0,
@@ -1457,7 +857,7 @@ Name | Description
 currency * string (path) | currency (Available values : ETH, BTC, USD, LTC, DASH, ZEC, BCH, ETC, BTG, ADA, EOS, E2C, XLM)
 
 **Response:**
-```javascript
+```JSON
 {
   "id": "string"
 }
@@ -1482,7 +882,7 @@ transactionType * string (path) | transactionType (Available values : DEPOSIT, W
 unpaged boolean (query) | -
 
 **Response:**
-```javascript
+```JSON
 {
   "content": [
     {
