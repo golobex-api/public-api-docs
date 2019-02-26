@@ -122,6 +122,46 @@ it means everything is ready to deposit some real money!
 
 ### Orders
 ```
+GET /orders/{pairName}
+```
+Name | Description
+------------ | ------------
+pairName * string (path) | pairName
+
+**Response:**
+```JSON
+[
+  {
+    "commissionOnCurrencyOfOrder": true,
+    "currencyFirst": "ETH",
+    "currencySecond": "ETH",
+    "date": 0,
+    "feeCurrency": "ETH",
+    "feeSum": 0,
+    "id": "string",
+    "initialQuantity": 0,
+    "market": true,
+    "pairName": "string",
+    "price": 0,
+    "quantity": 0,
+    "side": "BUY",
+    "slPrice": 0,
+    "sltp": true,
+    "sum": 0,
+    "total": 0,
+    "totalWithOutFee": 0,
+    "tpPrice": 0,
+    "trailingDistance": 0,
+    "trailingRange": 0,
+    "traling": true,
+    "userId": "string"
+  }
+]
+```
+
+#
+
+```
 POST /orders
 ```
 `SIGNED`
