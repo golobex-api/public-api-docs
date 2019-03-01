@@ -67,6 +67,11 @@ WITHDRAW | Endpoint requires sending a valid API-Key and signature.
 * LTC/BTC
 * ZEC/BTC
 
+**For request body, pair comes with slash separating currencies. For path variables slash is reserved symbol, use hyphen instead.**
+
+In request body: ```{pair:'E2C/ETH'}```
+As path variable: ```.../E2C-ETH```
+
 ## SIGNED Endpoint Example for POST /api/v1/orders/market
 Here is a step-by-step example of how to send a vaild signed payload from the
 Linux command line using `echo`, `openssl`, and `curl`.
